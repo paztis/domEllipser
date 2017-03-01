@@ -1,7 +1,7 @@
 /*! domEllipser - v1.0.0
  * 
  * Copyright (c) 2014 Jérôme HENAFF <jerome.henaff@gmail.com>;
- **/
+ * Licensed under the MIT license */
 
 
 interface IOptions {
