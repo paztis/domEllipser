@@ -1,7 +1,7 @@
 /*! domEllipser - v1.0.0
  *
  * Copyright (c) 2014 Jérôme HENAFF <jerome.henaff@gmail.com>;
- * Licensed under the ? license */
+ **/
 define(["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
