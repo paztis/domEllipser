@@ -1,8 +1,16 @@
 {
-    "compilerOptions": {
-        "target": "es5",
-        "module": "amd",
-        "sourceMap": true,
-        "watch": true
-    }
+  "compileOnSave": false,
+  "compilerOptions": {
+    "declaration": false,
+    "target": "es5",
+    "module": "commonjs",
+    "noImplicitAny": true,
+    "preserveConstEnums": true,
+    "removeComments": false,
+    "sourceMap": true,
+    "outDir": "tmp"
+  },
+  "exclude": [
+    "node_modules"
+  ]
 }

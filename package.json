@@ -1,0 +1,25 @@
+{
+  "name": "domEllipser",
+  "version": "1.0.0",
+  "description": "Ellispse DOM elements",
+  "main": "dist/domEllipser.min.js",
+  "scripts": {
+    "compile": "tsc -p .",
+    "package": "browserify  tmp/DomEllipser.js -p browserify-banner -s DomEllipser > dist/domEllipser.js",
+    "minify": "uglifyjs dist/domEllipser.js -c --comments '/@licence/' -o dist/domEllipser.min.js",
+    "build": "npm run compile && npm run package"
+  },
+  "keywords": [
+    "ellipsis",
+    "typescript"
+  ],
+  "author": "Jerome HENAFF <jerome.henaff@gmail.com>",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "browserify": "^14.1.0",
+    "browserify-banner": "^1.0.3",
+    "typescript": "^2.2.1",
+    "uglify-js": "^2.8.4"
+  }
+}

@@ -1,0 +1,5 @@
+@license <%= pkg.name %> v<%= pkg.version %>
+https://github.com/paztis/domEllipser
+
+Copyright (c) 2017 <%= pkg.author %>
+Licensed under the <%= pkg.license %> license
