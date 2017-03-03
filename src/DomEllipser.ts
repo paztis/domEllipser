@@ -7,9 +7,11 @@ interface IOptions {
 
 interface IConfig {
     options: IOptions,
+    results: IResults,
 
     originalText: string,
     domE: HTMLElement,
+    wrapperE: HTMLElement,
     originalE: HTMLElement,
     croppedE: HTMLElement,
     ellipsisE: HTMLElement,
@@ -23,29 +25,33 @@ interface IResults {
 
 class DomEllipser {
     private static DATA_ATTRIBUTES = {
+        wrapper: "data-wrapper",
         original: "data-original",
         cropped: "data-cropped",
         ellipsis: "data-ellipsis",
         cache: "data-cache"
     }
+    
+    public isAlreadyProcessed = function (domE: HTMLElement): boolean {
+        return !!this._getWrapperElement(domE);
+    }
 
-    public isEllipsed(domE: HTMLElement): boolean {
-        return !!this._getOriginalElement(domE);
+    public isAlreadyEllipsed(domE: HTMLElement): boolean {
+        return !!domE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.ellipsis}]`);
+    }
+
+    public getOriginalContent(domE: HTMLElement): string {
+        let originalE = domE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.original}]`);
+        return (originalE) ? originalE.textContent : null;
     }
 
     public ellipse(domE: HTMLElement, options: IOptions = {}): boolean {
         if(domE) {
-            let config = this._getExistingConfig(domE, options);
-            let previousResults: IResults;
-            if(!config) {
-                //Force word break
-                domE.style.wordBreak = "break-word";
-                domE.style.whiteSpace = "normal";
-                domE.style.overflow = "hidden";
-            }
-            else {
-                previousResults = this._getPreviousResults(config);
-            }
+            let wrapperE = this._getWrapperElement(domE);
+            (wrapperE) || (wrapperE = this._wrapElement(domE));
+
+            let config = this._getExistingConfig(domE, wrapperE, options);
+            let previousResults: IResults = (config) ? config.results : null;
 
             let maxHeight = options.maxHeight || domE.clientHeight;
             let isTextOverflow = this._isTextOverflow(domE, maxHeight);
@@ -65,7 +71,7 @@ class DomEllipser {
                 isNowEllipsed = true;
             }
             else if(isTextOverflow) {
-                config = this._generateConfig(domE, options);
+                config = this._generateConfig(domE, wrapperE, options);
                 config.maxHeight = maxHeight;
                 this._processEllipsis(config, 0, config.originalText.length);
                 isNowEllipsed = true;
@@ -80,27 +86,53 @@ class DomEllipser {
         let croppedText = config.originalText.substring(0, cropIndex);
         config.croppedE.textContent = croppedText;
         
-        this._storeCurrentResults(config, {
+        this._storeCurrentResults(config.wrapperE, {
             cropIndex
         });
     }
 
-    private _getOriginalElement(domE: HTMLElement): HTMLElement {
-        return <HTMLElement> domE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.original}]`);
+    //--------------------------
+    // Wrapper
+    //--------------------------
+    private _getWrapperElement(domE: HTMLElement): HTMLElement {
+        let children = domE.children;
+        return (children.length === 1 && children[0].hasAttribute(DomEllipser.DATA_ATTRIBUTES.wrapper)) ? <HTMLElement> children[0] : null;
+    }
+    
+    private _wrapElement(domE: HTMLElement): HTMLElement {
+        let originalText = domE.textContent;
+        domE.textContent = "";
+
+        let wrapperE = document.createElement("div");
+        wrapperE.setAttribute(DomEllipser.DATA_ATTRIBUTES.wrapper, "true");
+        wrapperE.setAttribute("style", "word-break: break-word; white-space: normal; overflow: hidden");
+        wrapperE.textContent = originalText;
+        domE.appendChild(wrapperE);
+
+        return wrapperE;
     }
 
-    private _getExistingConfig(domE: HTMLElement, options: IOptions): IConfig {
-        let originalE = this._getOriginalElement(domE);
+    //--------------------------
+    // Config
+    //--------------------------
+    private _getExistingConfig(domE: HTMLElement, wrapperE: HTMLElement, options: IOptions): IConfig {
+        let originalE = <HTMLElement> wrapperE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.original}]`);
         if(originalE) {
-            let croppedE = <HTMLElement> domE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.cropped}]`);
-            let ellipsisE = <HTMLElement> domE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.ellipsis}]`);
+            let croppedE = <HTMLElement> wrapperE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.cropped}]`);
+            let ellipsisE = <HTMLElement> wrapperE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.ellipsis}]`);
+            
+            let results = this._getCurrentResults(wrapperE);
+
             return {
                 options,
+                results,
+                
                 originalText: originalE.textContent,
                 domE,
+                wrapperE,
                 originalE,
                 croppedE,
-                ellipsisE
+                ellipsisE,
             };
         }
         else {
@@ -108,20 +140,20 @@ class DomEllipser {
         }
     }
 
-    private _generateConfig(domE: HTMLElement, options: IOptions): IConfig {
-        let originalText = domE.textContent;
-        domE.textContent = "";
+    private _generateConfig(domE: HTMLElement, wrapperE: HTMLElement, options: IOptions): IConfig {
+        let originalText = wrapperE.textContent;
+        wrapperE.textContent = "";
 
         let originalE = document.createElement("span");
         originalE.setAttribute(DomEllipser.DATA_ATTRIBUTES.original, "true");
         originalE.style.display = "none";
         originalE.textContent = originalText;
-        domE.appendChild(originalE);
+        wrapperE.appendChild(originalE);
         
         let croppedE = document.createElement("span");
         croppedE.setAttribute(DomEllipser.DATA_ATTRIBUTES.cropped, "true");
         croppedE.textContent = originalText;
-        domE.appendChild(croppedE);
+        wrapperE.appendChild(croppedE);
         
         let ellipsisE = document.createElement("span");
         ellipsisE.setAttribute(DomEllipser.DATA_ATTRIBUTES.ellipsis, "true");
@@ -131,27 +163,37 @@ class DomEllipser {
         else {
             ellipsisE.textContent = options.ellipsis || '...';
         }
-        domE.appendChild(ellipsisE);
+        wrapperE.appendChild(ellipsisE);
 
         return {
             options,
+            results: null,
+
             originalText,
             domE,
+            wrapperE,
             originalE,
             croppedE,
             ellipsisE
         };
     }
 
-    private _storeCurrentResults(config: IConfig, results: IResults) {
-        config.originalE.setAttribute(DomEllipser.DATA_ATTRIBUTES.cache, JSON.stringify(results));
-    }
-
-    private _getPreviousResults(config: IConfig): IResults {
-        let textResults = config.originalE.getAttribute(DomEllipser.DATA_ATTRIBUTES.cache);
+    //--------------------------
+    // Results
+    //--------------------------
+    private _getCurrentResults(wrapperE: HTMLElement): IResults {
+        let textResults = wrapperE.getAttribute(DomEllipser.DATA_ATTRIBUTES.cache);
         return (textResults) ? JSON.parse(textResults) : null;
     }
 
+    private _storeCurrentResults(wrapperE: HTMLElement, results: IResults) {
+        wrapperE.setAttribute(DomEllipser.DATA_ATTRIBUTES.cache, JSON.stringify(results));
+    }
+
+
+    //--------------------------
+    // Overflow Position search
+    //--------------------------
     private _getOverflowPosition(config: IConfig, startIndex: number, endIndex: number): number {
         let startPosition = startIndex;
         let endPosition = endIndex;

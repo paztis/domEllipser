@@ -9,24 +9,24 @@
 "use strict";
 var DomEllipser = (function () {
     function DomEllipser() {
+        this.isAlreadyProcessed = function (domE) {
+            return !!this._getWrapperElement(domE);
+        };
     }
-    DomEllipser.prototype.isEllipsed = function (domE) {
-        return !!this._getOriginalElement(domE);
+    DomEllipser.prototype.isAlreadyEllipsed = function (domE) {
+        return !!domE.querySelector("[" + DomEllipser.DATA_ATTRIBUTES.ellipsis + "]");
+    };
+    DomEllipser.prototype.getOriginalContent = function (domE) {
+        var originalE = domE.querySelector("[" + DomEllipser.DATA_ATTRIBUTES.original + "]");
+        return (originalE) ? originalE.textContent : null;
     };
     DomEllipser.prototype.ellipse = function (domE, options) {
         if (options === void 0) { options = {}; }
         if (domE) {
-            var config = this._getExistingConfig(domE, options);
-            var previousResults = void 0;
-            if (!config) {
-                //Force word break
-                domE.style.wordBreak = "break-word";
-                domE.style.whiteSpace = "normal";
-                domE.style.overflow = "hidden";
-            }
-            else {
-                previousResults = this._getPreviousResults(config);
-            }
+            var wrapperE = this._getWrapperElement(domE);
+            (wrapperE) || (wrapperE = this._wrapElement(domE));
+            var config = this._getExistingConfig(domE, wrapperE, options);
+            var previousResults = (config) ? config.results : null;
             var maxHeight = options.maxHeight || domE.clientHeight;
             var isTextOverflow = this._isTextOverflow(domE, maxHeight);
             var isNowEllipsed = false;
@@ -43,7 +43,7 @@ var DomEllipser = (function () {
                 isNowEllipsed = true;
             }
             else if (isTextOverflow) {
-                config = this._generateConfig(domE, options);
+                config = this._generateConfig(domE, wrapperE, options);
                 config.maxHeight = maxHeight;
                 this._processEllipsis(config, 0, config.originalText.length);
                 isNowEllipsed = true;
@@ -55,43 +55,63 @@ var DomEllipser = (function () {
         var cropIndex = this._getOverflowPosition(config, startIndex, endIndex);
         var croppedText = config.originalText.substring(0, cropIndex);
         config.croppedE.textContent = croppedText;
-        this._storeCurrentResults(config, {
+        this._storeCurrentResults(config.wrapperE, {
             cropIndex: cropIndex
         });
     };
-    DomEllipser.prototype._getOriginalElement = function (domE) {
-        return domE.querySelector("[" + DomEllipser.DATA_ATTRIBUTES.original + "]");
+    //--------------------------
+    // Wrapper
+    //--------------------------
+    DomEllipser.prototype._getWrapperElement = function (domE) {
+        var children = domE.children;
+        return (children.length === 1 && children[0].hasAttribute(DomEllipser.DATA_ATTRIBUTES.wrapper)) ? children[0] : null;
     };
-    DomEllipser.prototype._getExistingConfig = function (domE, options) {
-        var originalE = this._getOriginalElement(domE);
+    DomEllipser.prototype._wrapElement = function (domE) {
+        var originalText = domE.textContent;
+        domE.textContent = "";
+        var wrapperE = document.createElement("div");
+        wrapperE.setAttribute(DomEllipser.DATA_ATTRIBUTES.wrapper, "true");
+        wrapperE.setAttribute("style", "word-break: break-word; white-space: normal; overflow: hidden");
+        wrapperE.textContent = originalText;
+        domE.appendChild(wrapperE);
+        return wrapperE;
+    };
+    //--------------------------
+    // Config
+    //--------------------------
+    DomEllipser.prototype._getExistingConfig = function (domE, wrapperE, options) {
+        var originalE = wrapperE.querySelector("[" + DomEllipser.DATA_ATTRIBUTES.original + "]");
         if (originalE) {
-            var croppedE = domE.querySelector("[" + DomEllipser.DATA_ATTRIBUTES.cropped + "]");
-            var ellipsisE = domE.querySelector("[" + DomEllipser.DATA_ATTRIBUTES.ellipsis + "]");
+            var croppedE = wrapperE.querySelector("[" + DomEllipser.DATA_ATTRIBUTES.cropped + "]");
+            var ellipsisE = wrapperE.querySelector("[" + DomEllipser.DATA_ATTRIBUTES.ellipsis + "]");
+            var results = this._getCurrentResults(wrapperE);
             return {
                 options: options,
+                results: results,
                 originalText: originalE.textContent,
                 domE: domE,
+                wrapperE: wrapperE,
                 originalE: originalE,
                 croppedE: croppedE,
-                ellipsisE: ellipsisE
+                ellipsisE: ellipsisE,
             };
         }
         else {
             return null;
         }
     };
-    DomEllipser.prototype._generateConfig = function (domE, options) {
-        var originalText = domE.textContent;
-        domE.textContent = "";
+    DomEllipser.prototype._generateConfig = function (domE, wrapperE, options) {
+        var originalText = wrapperE.textContent;
+        wrapperE.textContent = "";
         var originalE = document.createElement("span");
         originalE.setAttribute(DomEllipser.DATA_ATTRIBUTES.original, "true");
         originalE.style.display = "none";
         originalE.textContent = originalText;
-        domE.appendChild(originalE);
+        wrapperE.appendChild(originalE);
         var croppedE = document.createElement("span");
         croppedE.setAttribute(DomEllipser.DATA_ATTRIBUTES.cropped, "true");
         croppedE.textContent = originalText;
-        domE.appendChild(croppedE);
+        wrapperE.appendChild(croppedE);
         var ellipsisE = document.createElement("span");
         ellipsisE.setAttribute(DomEllipser.DATA_ATTRIBUTES.ellipsis, "true");
         if (options.ellipsisHTML) {
@@ -100,23 +120,31 @@ var DomEllipser = (function () {
         else {
             ellipsisE.textContent = options.ellipsis || '...';
         }
-        domE.appendChild(ellipsisE);
+        wrapperE.appendChild(ellipsisE);
         return {
             options: options,
+            results: null,
             originalText: originalText,
             domE: domE,
+            wrapperE: wrapperE,
             originalE: originalE,
             croppedE: croppedE,
             ellipsisE: ellipsisE
         };
     };
-    DomEllipser.prototype._storeCurrentResults = function (config, results) {
-        config.originalE.setAttribute(DomEllipser.DATA_ATTRIBUTES.cache, JSON.stringify(results));
-    };
-    DomEllipser.prototype._getPreviousResults = function (config) {
-        var textResults = config.originalE.getAttribute(DomEllipser.DATA_ATTRIBUTES.cache);
+    //--------------------------
+    // Results
+    //--------------------------
+    DomEllipser.prototype._getCurrentResults = function (wrapperE) {
+        var textResults = wrapperE.getAttribute(DomEllipser.DATA_ATTRIBUTES.cache);
         return (textResults) ? JSON.parse(textResults) : null;
     };
+    DomEllipser.prototype._storeCurrentResults = function (wrapperE, results) {
+        wrapperE.setAttribute(DomEllipser.DATA_ATTRIBUTES.cache, JSON.stringify(results));
+    };
+    //--------------------------
+    // Overflow Position search
+    //--------------------------
     DomEllipser.prototype._getOverflowPosition = function (config, startIndex, endIndex) {
         var startPosition = startIndex;
         var endPosition = endIndex;
@@ -146,6 +174,7 @@ var DomEllipser = (function () {
     return DomEllipser;
 }());
 DomEllipser.DATA_ATTRIBUTES = {
+    wrapper: "data-wrapper",
     original: "data-original",
     cropped: "data-cropped",
     ellipsis: "data-ellipsis",
