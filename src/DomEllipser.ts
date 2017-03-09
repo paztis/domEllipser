@@ -41,6 +41,11 @@ class DomEllipser {
         return !!domE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.ellipsis}]`);
     }
 
+    public getOriginalText(domE: HTMLElement): string {
+        let originalE = domE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.original}]`);
+        return (originalE) ? originalE.textContent : null;
+    }
+
     public getOriginalContent(domE: HTMLElement): string {
         let originalE = domE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.original}]`);
         return (originalE) ? originalE.innerHTML : null;
