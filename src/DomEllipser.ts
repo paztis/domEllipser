@@ -8,7 +8,6 @@ interface IOptions {
 interface IConfig {
     options: IOptions,
     results: IResults,
-
     originalText: string,
     domE: HTMLElement,
     wrapperE: HTMLElement,
@@ -24,14 +23,14 @@ interface IResults {
 }
 
 class DomEllipser {
-    private static DATA_ATTRIBUTES = {
+    private static DATA_ATTRIBUTES: {[name: string]: string} = {
         wrapper: "data-wrapper",
         original: "data-original",
         cropped: "data-cropped",
         ellipsis: "data-ellipsis",
         cache: "data-cache"
-    }
-    
+    };
+
     public isAlreadyProcessed = function (domE: HTMLElement): boolean {
         return !!this._getWrapperElement(domE);
     }
@@ -42,7 +41,7 @@ class DomEllipser {
 
     public getOriginalContent(domE: HTMLElement): string {
         let originalE = domE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.original}]`);
-        return (originalE) ? originalE.textContent : null;
+        return (originalE) ? originalE.innerHTML : null;
     }
 
     public ellipse(domE: HTMLElement, options: IOptions = {}): boolean {
@@ -54,41 +53,70 @@ class DomEllipser {
             let previousResults: IResults = (config) ? config.results : null;
 
             let maxHeight = options.maxHeight || domE.clientHeight;
-            let isTextOverflow = this._isTextOverflow(domE, maxHeight);
+            let isOverflow = this._isTextOverflow(domE, maxHeight);
 
             let isNowEllipsed = false;
-            if(previousResults) {
-                if(isTextOverflow) {
+
+            if (isOverflow) {
+                // Content overflows
+                if (previousResults) {
                     config.maxHeight = maxHeight;
                     this._processEllipsis(config, 0, previousResults.cropIndex);
+                } else {
+                    config = config || this._generateConfig(domE, wrapperE, options);
+                    config.maxHeight = maxHeight;
+                    this._processEllipsis(config, 0, config.originalText.length);
+                    isNowEllipsed = true;
                 }
-                else {
-                    config.croppedE.textContent = config.originalText;
+            } else {
+                // Do something only if previous config
+                if (config) {
+                    // Try to put the original content
+                    config.croppedE.innerHTML = config.originalE.innerHTML;
                     config.maxHeight = options.maxHeight || domE.clientHeight;
-                    
-                    this._processEllipsis(config, previousResults.cropIndex, config.originalText.length);
+
+                    if (this._isTextOverflow(domE, config.maxHeight)) {
+                        if (previousResults) {
+                            this._processEllipsis(config, previousResults.cropIndex, config.originalText.length);
+                        } else {
+                            this._processEllipsis(config, 0, config.originalText.length);
+                        }
+
+                        isNowEllipsed = true;
+                    }
                 }
-                isNowEllipsed = true;
             }
-            else if(isTextOverflow) {
-                config = this._generateConfig(domE, wrapperE, options);
-                config.maxHeight = maxHeight;
-                this._processEllipsis(config, 0, config.originalText.length);
-                isNowEllipsed = true;
+
+            if (config) {
+                this._displayEllipsis(config, isNowEllipsed);
             }
 
             return isNowEllipsed;
-        } 
+        }
     }
 
     private _processEllipsis(config: IConfig, startIndex: number, endIndex: number) {
-        let cropIndex = this._getOverflowPosition(config, startIndex, endIndex);
-        let croppedText = config.originalText.substring(0, cropIndex);
-        config.croppedE.textContent = croppedText;
-        
-        this._storeCurrentResults(config.wrapperE, {
-            cropIndex
-        });
+        let nodeToCrop: Node;
+        let originalContent: string;
+        if (this._hasChildElements(config.croppedE)) {
+            nodeToCrop = this._getOverflowChildNode(config);
+            originalContent = nodeToCrop.textContent;
+            startIndex = 0;
+            endIndex = originalContent.length;
+        } else {
+            nodeToCrop = config.croppedE;
+            originalContent = config.originalText;
+        }
+
+        let cropIndex = this._getOverflowPosition(config, startIndex, endIndex, originalContent, nodeToCrop);
+        let croppedText = nodeToCrop.textContent.substring(0, cropIndex);
+        nodeToCrop.textContent = croppedText;
+
+        if (nodeToCrop === config.wrapperE) {
+            this._storeCurrentResults(config.wrapperE, {
+                cropIndex
+            });
+        }
     }
 
     //--------------------------
@@ -98,15 +126,17 @@ class DomEllipser {
         let children = domE.children;
         return (children.length === 1 && children[0].hasAttribute(DomEllipser.DATA_ATTRIBUTES.wrapper)) ? <HTMLElement> children[0] : null;
     }
-    
-    private _wrapElement(domE: HTMLElement): HTMLElement {
-        let originalText = domE.textContent;
-        domE.textContent = "";
 
+    private _wrapElement(domE: HTMLElement): HTMLElement {
         let wrapperE = document.createElement("div");
         wrapperE.setAttribute(DomEllipser.DATA_ATTRIBUTES.wrapper, "true");
         wrapperE.setAttribute("style", "word-break: break-word; white-space: normal; overflow: hidden");
-        wrapperE.textContent = originalText;
+
+        for (let child = domE.firstChild; child; child = domE.firstChild) {
+            child.parentNode.removeChild(child);
+            wrapperE.appendChild(child);
+        }
+
         domE.appendChild(wrapperE);
 
         return wrapperE;
@@ -120,13 +150,13 @@ class DomEllipser {
         if(originalE) {
             let croppedE = <HTMLElement> wrapperE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.cropped}]`);
             let ellipsisE = <HTMLElement> wrapperE.querySelector(`[${DomEllipser.DATA_ATTRIBUTES.ellipsis}]`);
-            
+
             let results = this._getCurrentResults(wrapperE);
 
             return {
                 options,
                 results,
-                
+
                 originalText: originalE.textContent,
                 domE,
                 wrapperE,
@@ -141,34 +171,45 @@ class DomEllipser {
     }
 
     private _generateConfig(domE: HTMLElement, wrapperE: HTMLElement, options: IOptions): IConfig {
-        let originalText = wrapperE.textContent;
-        wrapperE.textContent = "";
+        let hasChildElements = this._hasChildElements(wrapperE);
+        let originalText = hasChildElements ? wrapperE.innerHTML : wrapperE.textContent;
+
+        var fragment = document.createDocumentFragment();
 
         let originalE = document.createElement("span");
         originalE.setAttribute(DomEllipser.DATA_ATTRIBUTES.original, "true");
         originalE.style.display = "none";
-        originalE.textContent = originalText;
-        wrapperE.appendChild(originalE);
-        
+        fragment.appendChild(originalE);
+
         let croppedE = document.createElement("span");
         croppedE.setAttribute(DomEllipser.DATA_ATTRIBUTES.cropped, "true");
-        croppedE.textContent = originalText;
-        wrapperE.appendChild(croppedE);
-        
+        fragment.appendChild(croppedE);
+
         let ellipsisE = document.createElement("span");
         ellipsisE.setAttribute(DomEllipser.DATA_ATTRIBUTES.ellipsis, "true");
-        if(options.ellipsisHTML) {
+        if (options.ellipsisHTML) {
             ellipsisE.innerHTML = options.ellipsisHTML;
         }
         else {
-            ellipsisE.textContent = options.ellipsis || '...';
+            ellipsisE.textContent = options.ellipsis || '…';
         }
-        wrapperE.appendChild(ellipsisE);
+        fragment.appendChild(ellipsisE);
+
+        for (let child = wrapperE.firstChild; child; child = wrapperE.firstChild) {
+            child.parentNode.removeChild(child);
+
+            if (!this._isConfigElement(child)) {
+                let cropChild = child.cloneNode(true);
+                originalE.appendChild(child);
+                croppedE.appendChild(cropChild);
+            }
+        }
+
+        wrapperE.appendChild(fragment);
 
         return {
             options,
             results: null,
-
             originalText,
             domE,
             wrapperE,
@@ -194,7 +235,7 @@ class DomEllipser {
     //--------------------------
     // Overflow Position search
     //--------------------------
-    private _getOverflowPosition(config: IConfig, startIndex: number, endIndex: number): number {
+    private _getOverflowPosition(config: IConfig, startIndex: number, endIndex: number, originalText: string, node: Node): number {
         let startPosition = startIndex;
         let endPosition = endIndex;
         let middlePosition = -1;
@@ -206,7 +247,7 @@ class DomEllipser {
             }
             middlePosition = m;
 
-            if (!this._testTextOverflow(config, config.originalText.substring(0, middlePosition))) {
+            if (!this._testTextOverflow(config, node, originalText.substring(0, middlePosition))) {
                 endPosition = middlePosition;
             } else {
                 startPosition = middlePosition;
@@ -216,13 +257,66 @@ class DomEllipser {
         return middlePosition;
     }
 
+    private _getOverflowChildNode (config: IConfig): Node {
+        let lastRemovedChild: Node, lastChild = config.croppedE.lastChild;
+
+        while (lastChild && this._isTextOverflow(config.domE, config.maxHeight)) {
+            lastChild.parentNode.removeChild(lastChild);
+            lastRemovedChild = lastChild;
+            lastChild = config.croppedE.lastChild;
+        }
+
+        if (lastRemovedChild) {
+            config.croppedE.appendChild(lastRemovedChild);
+        }
+
+        return config.croppedE.lastChild;
+    }
+
     private _isTextOverflow (domE: HTMLElement, maxHeight: number): boolean {
         return (domE.scrollHeight > maxHeight);
     }
 
-    private _testTextOverflow (config: IConfig, textContent: string): boolean {
-        config.croppedE.textContent = textContent;
+    private _testTextOverflow (config: IConfig, node: Node, textContent: string): boolean {
+        node.textContent = textContent;
         return !this._isTextOverflow(config.domE, config.maxHeight);
+    }
+
+    private _hasChildElements (domE: HTMLElement) {
+        for (let childNode = domE.firstChild; childNode; childNode = childNode.nextSibling) {
+            if (childNode.nodeType === 1 && !this._isConfigElement(childNode)) { // 1 == Element
+                return true;
+            }
+        }
+    }
+
+    private _isConfigElement (node: Node) {
+        if (node.nodeType === 1) {
+            let elt = node as HTMLElement;
+            for (let key in DomEllipser.DATA_ATTRIBUTES) {
+                if (elt.hasAttribute(DomEllipser.DATA_ATTRIBUTES[key])) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Show/hide the ellipsis element.
+     *
+     * @param config
+     * @param show
+     */
+    private _displayEllipsis (config: IConfig, show: boolean) {
+        if (config) {
+            if (show) {
+                config.ellipsisE.removeAttribute('style');
+            } else {
+                config.ellipsisE.setAttribute('style', 'display: none');
+            }
+        }
     }
 }
 
