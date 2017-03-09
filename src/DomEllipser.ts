@@ -22,6 +22,8 @@ interface IResults {
     cropIndex: number
 }
 
+const DEFAULT_ELLIPSIS = '... ';
+
 class DomEllipser {
     private static DATA_ATTRIBUTES: {[name: string]: string} = {
         wrapper: "data-wrapper",
@@ -191,7 +193,7 @@ class DomEllipser {
             ellipsisE.innerHTML = options.ellipsisHTML;
         }
         else {
-            ellipsisE.textContent = options.ellipsis || '…';
+            ellipsisE.textContent = options.ellipsis || DEFAULT_ELLIPSIS;
         }
         fragment.appendChild(ellipsisE);
 
