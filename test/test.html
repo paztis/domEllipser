@@ -6,7 +6,7 @@
     <script src="../dist/domEllipser.js"></script>
     <style>
 
-        *[data-test] {
+        *[data-test], *[data-test-html] {
             border: 1px solid black;
         }
 
@@ -38,21 +38,54 @@
     <div data-test class="test3"></div>
     <div data-test class="test4"></div>
     <div data-test class="test5"></div>
+    <div data-test-html class="test1"></div>
+    <div data-test-html class="test2"></div>
 
 <script>
     window.onload = function() {
         var text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam. Sed nisi. Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum. Praesent mauris. Fusce nec tellus sed augue semper porta. Mauris massa. Vestibulum lacinia arcu eget nulla. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Curabitur sodales ligula in libero. Sed dignissim lacinia nunc. Curabitur tortor. Pellentesque nibh. Aenean quam. In scelerisque sem at dolor. Maecenas mattis. Sed convallis tristique sem. Proin ut ligula vel nunc egestas porttitor. Morbi lectus risus, iaculis vel, suscipit quis, luctus non, massa. Fusce ac turpis quis ligula lacinia aliquet. Mauris ipsum. Nulla metus metus, ullamcorper vel, tincidunt sed, euismod in, nibh. Quisque volutpat condimentum velit. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nam nec ante. Sed lacinia, urna non tincidunt mattis, tortor neque adipiscing diam, a cursus ipsum ante quis turpis. Nulla facilisi. Ut fringilla. Suspendisse potenti. Nunc feugiat mi a tellus consequat imperdiet. Vestibulum sapien. Proin quam. Etiam ultrices. Suspendisse in justo eu magna luctus suscipit. Sed lectus. Integer euismod lacus luctus magna. Quisque cursus, metus vitae pharetra auctor, sem massa mattis sem, at interdum magna augue eget diam. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Morbi lacinia molestie dui. Praesent blandit dolor. Sed non quam. In vel mi sit amet augue congue elementum. Morbi in ipsum sit amet pede facilisis laoreet. Donec lacus nunc, viverra nec.";
+        var html = '<a href="#">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</a>' +
+            '<a href="#">Integer nec odio. Praesent libero.</a>' +
+            '<a href="#">Sed cursus ante dapibus diam. Sed nisi.</a>' +
+            '<a href="#">Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum. Praesent mauris. Fusce nec tellus sed augue semper porta.</a>' +
+            '<a href="#">Mauris massa. Vestibulum lacinia arcu eget nulla.</a>' +
+            '<a href="#">In vel mi sit amet augue congue elementum. Morbi in ipsum sit amet pede facilisis laoreet. Donec lacus nunc, viverra nec.</a>' +
+            '<a href="#">Fusce nec tellus sed augue semper porta. Mauris massa. Vestibulum lacinia arcu eget nulla.</a>' +
+            '<a href="#">Mauris ipsum. Nulla metus metus, ullamcorper vel, tincidunt sed, euismod in, nibh.</a>' +
+            '<a href="#">Integer euismod lacus luctus magna. Quisque cursus, metus vitae pharetra auctor, sem massa mattis sem, at interdum magna augue eget diam.</a>' +
+            '<strong>Fusce nec tellus sed augue semper porta. Mauris massa. Vestibulum lacinia arcu eget nulla.</strong>' +
+            '<a href="#">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</a>' +
+            '<a href="#">Integer nec odio. Praesent libero.</a>' +
+            '<a href="#">Sed cursus ante dapibus diam. Sed nisi.</a>' +
+            'Sed cursus ante dapibus diam. Sed nisi. ' +
+            '<a href="#">Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum. Praesent mauris. Fusce nec tellus sed augue semper porta.</a>' +
+            '<a href="#">Mauris massa. Vestibulum lacinia arcu eget nulla.</a>';
 
         if(!NodeList.prototype.forEach) {
             NodeList.prototype.forEach = Array.prototype.forEach;
         }
 
-        document.querySelectorAll("[data-test]").forEach(function(element) {
-            if(!element.textContent) {
-                element.textContent = text;
-            }
-            DomEllipser.ellipse(element, {});
+        ellipseAll();
+
+        window.addEventListener('resize', function () {
+            ellipseAll();
         });
+
+        function ellipseAll () {
+            document.querySelectorAll("[data-test]").forEach(function(element) {
+                if(!element.textContent) {
+                    element.textContent = text;
+                }
+                DomEllipser.ellipse(element, {});
+            });
+
+            document.querySelectorAll("[data-test-html]").forEach(function(element) {
+                if (!element.innerHTML) {
+                    element.innerHTML = html;
+                }
+                DomEllipser.ellipse(element, {});
+            });
+        }
     }
 </script>
   </body>
