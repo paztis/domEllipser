@@ -22,7 +22,7 @@ interface IResults {
     cropIndex: number
 }
 
-const DEFAULT_ELLIPSIS = '... ';
+const DEFAULT_ELLIPSIS = '… ';
 
 class DomEllipser {
     private static DATA_ATTRIBUTES: {[name: string]: string} = {
