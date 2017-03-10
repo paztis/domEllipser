@@ -2,7 +2,8 @@
 interface IOptions {
     ellipsis?: string,
     ellipsisHTML?: string,
-    maxHeight?: number
+    maxHeight?: number,
+    tolerance?: number
 }
 
 interface IConfig {
@@ -23,6 +24,7 @@ interface IResults {
 }
 
 const DEFAULT_ELLIPSIS = '… ';
+const DEFAULT_TOLERANCE = 0;
 
 class DomEllipser {
     private static DATA_ATTRIBUTES: {[name: string]: string} = {
@@ -60,7 +62,7 @@ class DomEllipser {
             let previousResults: IResults = (config) ? config.results : null;
 
             let maxHeight = options.maxHeight || domE.clientHeight;
-            let isOverflow = this._isTextOverflow(domE, maxHeight);
+            let isOverflow = this._isTextOverflow(domE, maxHeight, options);
 
             let isNowEllipsed = false;
 
@@ -82,7 +84,7 @@ class DomEllipser {
                     config.croppedE.innerHTML = config.originalE.innerHTML;
                     config.maxHeight = options.maxHeight || domE.clientHeight;
 
-                    if (this._isTextOverflow(domE, config.maxHeight)) {
+                    if (this._isTextOverflow(domE, config.maxHeight, config.options)) {
                         if (previousResults) {
                             this._processEllipsis(config, previousResults.cropIndex, config.originalText.length);
                         } else {
@@ -137,7 +139,7 @@ class DomEllipser {
     private _wrapElement(domE: HTMLElement): HTMLElement {
         let wrapperE = document.createElement("div");
         wrapperE.setAttribute(DomEllipser.DATA_ATTRIBUTES.wrapper, "true");
-        wrapperE.setAttribute("style", "word-break: break-word; white-space: normal; overflow: hidden");
+        wrapperE.setAttribute("style", "word-wrap: break-word; white-space: normal; overflow: hidden");
 
         for (let child = domE.firstChild; child; child = domE.firstChild) {
             child.parentNode.removeChild(child);
@@ -267,7 +269,7 @@ class DomEllipser {
     private _getOverflowChildNode (config: IConfig): Node {
         let lastRemovedChild: Node, lastChild = config.croppedE.lastChild;
 
-        while (lastChild && this._isTextOverflow(config.domE, config.maxHeight)) {
+        while (lastChild && this._isTextOverflow(config.domE, config.maxHeight, config.options)) {
             lastChild.parentNode.removeChild(lastChild);
             lastRemovedChild = lastChild;
             lastChild = config.croppedE.lastChild;
@@ -280,13 +282,14 @@ class DomEllipser {
         return config.croppedE.lastChild;
     }
 
-    private _isTextOverflow (domE: HTMLElement, maxHeight: number): boolean {
-        return (domE.scrollHeight > maxHeight);
+    private _isTextOverflow (domE: HTMLElement, maxHeight: number, options: IOptions): boolean {
+        let tolerance = options.tolerance || DEFAULT_TOLERANCE;
+        return domE.scrollHeight - maxHeight > tolerance;
     }
 
     private _testTextOverflow (config: IConfig, node: Node, textContent: string): boolean {
         node.textContent = textContent;
-        return !this._isTextOverflow(config.domE, config.maxHeight);
+        return !this._isTextOverflow(config.domE, config.maxHeight, config.options);
     }
 
     private _hasChildElements (domE: HTMLElement) {
