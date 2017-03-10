@@ -8,6 +8,7 @@
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.DomEllipser = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 "use strict";
 var DEFAULT_ELLIPSIS = '… ';
+var DEFAULT_TOLERANCE = 0;
 var DomEllipser = (function () {
     function DomEllipser() {
         this.isAlreadyProcessed = function (domE) {
@@ -33,7 +34,7 @@ var DomEllipser = (function () {
             var config = this._getExistingConfig(domE, wrapperE, options);
             var previousResults = (config) ? config.results : null;
             var maxHeight = options.maxHeight || domE.clientHeight;
-            var isOverflow = this._isTextOverflow(domE, maxHeight);
+            var isOverflow = this._isTextOverflow(domE, maxHeight, options);
             var isNowEllipsed = false;
             if (isOverflow) {
                 // Content overflows
@@ -54,7 +55,7 @@ var DomEllipser = (function () {
                     // Try to put the original content
                     config.croppedE.innerHTML = config.originalE.innerHTML;
                     config.maxHeight = options.maxHeight || domE.clientHeight;
-                    if (this._isTextOverflow(domE, config.maxHeight)) {
+                    if (this._isTextOverflow(domE, config.maxHeight, config.options)) {
                         if (previousResults) {
                             this._processEllipsis(config, previousResults.cropIndex, config.originalText.length);
                         }
@@ -103,7 +104,7 @@ var DomEllipser = (function () {
     DomEllipser.prototype._wrapElement = function (domE) {
         var wrapperE = document.createElement("div");
         wrapperE.setAttribute(DomEllipser.DATA_ATTRIBUTES.wrapper, "true");
-        wrapperE.setAttribute("style", "word-break: break-word; white-space: normal; overflow: hidden");
+        wrapperE.setAttribute("style", "word-wrap: break-word; white-space: normal; overflow: hidden");
         for (var child = domE.firstChild; child; child = domE.firstChild) {
             child.parentNode.removeChild(child);
             wrapperE.appendChild(child);
@@ -210,7 +211,7 @@ var DomEllipser = (function () {
     };
     DomEllipser.prototype._getOverflowChildNode = function (config) {
         var lastRemovedChild, lastChild = config.croppedE.lastChild;
-        while (lastChild && this._isTextOverflow(config.domE, config.maxHeight)) {
+        while (lastChild && this._isTextOverflow(config.domE, config.maxHeight, config.options)) {
             lastChild.parentNode.removeChild(lastChild);
             lastRemovedChild = lastChild;
             lastChild = config.croppedE.lastChild;
@@ -220,12 +221,13 @@ var DomEllipser = (function () {
         }
         return config.croppedE.lastChild;
     };
-    DomEllipser.prototype._isTextOverflow = function (domE, maxHeight) {
-        return (domE.scrollHeight > maxHeight);
+    DomEllipser.prototype._isTextOverflow = function (domE, maxHeight, options) {
+        var tolerance = options.tolerance || DEFAULT_TOLERANCE;
+        return domE.scrollHeight - maxHeight > tolerance;
     };
     DomEllipser.prototype._testTextOverflow = function (config, node, textContent) {
         node.textContent = textContent;
-        return !this._isTextOverflow(config.domE, config.maxHeight);
+        return !this._isTextOverflow(config.domE, config.maxHeight, config.options);
     };
     DomEllipser.prototype._hasChildElements = function (domE) {
         for (var childNode = domE.firstChild; childNode; childNode = childNode.nextSibling) {
