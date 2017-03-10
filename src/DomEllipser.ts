@@ -163,7 +163,6 @@ class DomEllipser {
             return {
                 options,
                 results,
-
                 originalText: originalE.textContent,
                 domE,
                 wrapperE,
@@ -190,6 +189,7 @@ class DomEllipser {
 
         let croppedE = document.createElement("span");
         croppedE.setAttribute(DomEllipser.DATA_ATTRIBUTES.cropped, "true");
+        croppedE.setAttribute("style", "white-space: normal;");
         fragment.appendChild(croppedE);
 
         let ellipsisE = document.createElement("span");
