@@ -162,7 +162,14 @@ var DomEllipser = (function () {
             if (!this._isConfigElement(child)) {
                 var cropChild = child.cloneNode(true);
                 originalE.appendChild(child);
-                croppedE.appendChild(cropChild);
+                if (cropChild.nodeType === Node.TEXT_NODE) {
+                    var cropChildWrapper = document.createElement('span');
+                    cropChildWrapper.appendChild(cropChild);
+                    croppedE.appendChild(cropChildWrapper);
+                }
+                else {
+                    croppedE.appendChild(cropChild);
+                }
             }
         }
         wrapperE.appendChild(fragment);
@@ -196,7 +203,7 @@ var DomEllipser = (function () {
         var middlePosition = -1;
         while (startPosition < endPosition) {
             var m = Math.floor((startPosition + endPosition) / 2);
-            if (m == middlePosition) {
+            if (m === middlePosition) {
                 break;
             }
             middlePosition = m;
@@ -231,13 +238,13 @@ var DomEllipser = (function () {
     };
     DomEllipser.prototype._hasChildElements = function (domE) {
         for (var childNode = domE.firstChild; childNode; childNode = childNode.nextSibling) {
-            if (childNode.nodeType === 1 && !this._isConfigElement(childNode)) {
+            if (childNode.nodeType === Node.ELEMENT_NODE && !this._isConfigElement(childNode)) {
                 return true;
             }
         }
     };
     DomEllipser.prototype._isConfigElement = function (node) {
-        if (node.nodeType === 1) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
             var elt = node;
             for (var key in DomEllipser.DATA_ATTRIBUTES) {
                 if (elt.hasAttribute(DomEllipser.DATA_ATTRIBUTES[key])) {
