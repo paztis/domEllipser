@@ -210,7 +210,14 @@ class DomEllipser {
             if (!this._isConfigElement(child)) {
                 let cropChild = child.cloneNode(true);
                 originalE.appendChild(child);
-                croppedE.appendChild(cropChild);
+
+                if (cropChild.nodeType === Node.TEXT_NODE) {
+                    let cropChildWrapper = document.createElement('span');
+                    cropChildWrapper.appendChild(cropChild);
+                    croppedE.appendChild(cropChildWrapper);
+                } else {
+                    croppedE.appendChild(cropChild);
+                }
             }
         }
 
@@ -249,9 +256,9 @@ class DomEllipser {
         let endPosition = endIndex;
         let middlePosition = -1;
 
-        while(startPosition < endPosition) {
+        while (startPosition < endPosition) {
             let m = Math.floor((startPosition + endPosition) / 2);
-            if (m == middlePosition) {
+            if (m === middlePosition) {
                 break;
             }
             middlePosition = m;
@@ -294,14 +301,14 @@ class DomEllipser {
 
     private _hasChildElements (domE: HTMLElement) {
         for (let childNode = domE.firstChild; childNode; childNode = childNode.nextSibling) {
-            if (childNode.nodeType === 1 && !this._isConfigElement(childNode)) { // 1 == Element
+            if (childNode.nodeType === Node.ELEMENT_NODE && !this._isConfigElement(childNode)) { // 1 == Element
                 return true;
             }
         }
     }
 
     private _isConfigElement (node: Node) {
-        if (node.nodeType === 1) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
             let elt = node as HTMLElement;
             for (let key in DomEllipser.DATA_ATTRIBUTES) {
                 if (elt.hasAttribute(DomEllipser.DATA_ATTRIBUTES[key])) {
